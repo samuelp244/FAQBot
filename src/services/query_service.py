@@ -19,7 +19,7 @@ class QueryService:
     async def generate_answer(self, question: str) -> str:
         """Generate an answer using RAG with ChromaDB and OpenAI"""
         # Generate embedding for the question
-        question_embedding = await self._generate_embedding(question)
+        question_embedding = self._generate_embedding(question)
         
         # Query ChromaDB for relevant chunks
         results = self.collection.query(
@@ -34,7 +34,7 @@ class QueryService:
         context = "\n\n".join(results['documents'][0])
         
         # Generate answer using OpenAI
-        response = await self.openai_client.chat.completions.create(
+        response = self.openai_client.chat.completions.create(
             model="gpt-4-turbo-preview",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant. Answer the question based on the provided context. If you cannot find the answer in the context, say so."},
@@ -44,9 +44,9 @@ class QueryService:
         
         return response.choices[0].message.content
 
-    async def _generate_embedding(self, text: str) -> List[float]:
+    def _generate_embedding(self, text: str) -> List[float]:
         """Generate embedding for a single text using OpenAI"""
-        response = await self.openai_client.embeddings.create(
+        response = self.openai_client.embeddings.create(
             model="text-embedding-ada-002",
             input=text
         )

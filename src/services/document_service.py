@@ -6,6 +6,7 @@ from fastapi import UploadFile
 import tempfile
 import uuid
 from src.config import config
+import os
 
 class DocumentService:
     def __init__(self):
@@ -41,12 +42,21 @@ class DocumentService:
                 chunks = self._split_text(text)
                 
                 # Generate embeddings and store in ChromaDB
+                if not chunks:  # Check if we have any chunks to process
+                    raise ValueError("No text content found in the PDF")
+                    
                 embeddings = await self._generate_embeddings(chunks)
                 
+                # Prepare the data for ChromaDB
+                chunk_ids = [f"{document_id}_{i}" for i in range(len(chunks))]
+                chunk_metadata = [{"document_id": document_id, "filename": file.filename} for _ in chunks]
+                
+                # Add to ChromaDB with all required fields
                 self.collection.add(
+                    embeddings=embeddings,
                     documents=chunks,
-                    metadatas=[{"document_id": document_id, "filename": file.filename} for _ in chunks],
-                    ids=[f"{document_id}_{i}" for i in range(len(chunks))]
+                    metadatas=chunk_metadata,
+                    ids=chunk_ids
                 )
                 
                 return document_id
@@ -109,7 +119,7 @@ class DocumentService:
         """Generate embeddings for text chunks using OpenAI"""
         embeddings = []
         for text in texts:
-            response = await self.openai_client.embeddings.create(
+            response = self.openai_client.embeddings.create(
                 model="text-embedding-ada-002",
                 input=text
             )
